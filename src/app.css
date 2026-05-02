@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SF Pro Text - For Body */
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf-pro-text-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf-pro-text-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: swap;
+}
+
+/* SF Pro Display - For Elegant Headings */
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/fonts/sf-pro-display-semibold.woff2') format('woff2');
+  font-weight: 600; 
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/fonts/sf-pro-display-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
