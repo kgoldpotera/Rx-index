@@ -378,13 +378,13 @@
 </script>
 
 <div class="fixed inset-0 z-50 pointer-events-none flex justify-end" style="visibility: {isOpen ? 'visible' : 'hidden'}">
-  <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-sm pointer-events-auto transition-opacity duration-300" onclick={onClose} style="opacity: {isOpen ? 1 : 0}"></div>
+  <div class="drawer-backdrop absolute inset-0 pointer-events-auto" onclick={onClose} style="opacity: {isOpen ? 1 : 0}"></div>
   
-  <div class="relative w-full max-w-md h-full bg-white border-l border-slate-200 shadow-2xl flex flex-col pointer-events-auto transition-transform duration-500 ease-out {isOpen ? 'translate-x-0' : 'translate-x-full'}">
-    <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+  <div class="modal-panel relative w-full max-w-md h-full flex flex-col pointer-events-auto transition-transform duration-500 ease-out {isOpen ? 'translate-x-0' : 'translate-x-full'}">
+    <div class="p-6 border-b border-rx-peach flex justify-between items-center bg-rx-cream/50 shrink-0">
       <div>
-        <h2 class="font-display font-bold text-xl text-slate-900 tracking-tight">New Consultation</h2>
-        <p class="text-sm text-slate-500 font-medium mt-1">
+        <h2 class="text-heading text-xl">New Consultation</h2>
+        <p class="text-subheading text-sm mt-1">
           {#if studentData}
             {studentData.first_name} {studentData.last_name}
           {:else}
@@ -392,33 +392,33 @@
           {/if}
         </p>
       </div>
-      <button onclick={onClose} class="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
+      <button onclick={onClose} class="p-2 text-rx-green/50 hover:text-rx-green hover:bg-rx-cream rounded-full transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
     </div>
 
     <div class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
       <div>
-        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Vitals</label>
+        <label class="block tag-badge text-rx-green/50 mb-2 !px-0">Vitals</label>
         <div class="grid grid-cols-2 gap-4">
-          <input type="text" bind:value={vitalsTemp} placeholder="Temp (°C)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-400 transition-colors" />
-          <input type="text" bind:value={vitalsWeight} placeholder="Weight (kg)" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-400 transition-colors" />
+          <input type="text" bind:value={vitalsTemp} placeholder="Temp (°C)" class="input-standard" />
+          <input type="text" bind:value={vitalsWeight} placeholder="Weight (kg)" class="input-standard" />
         </div>
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+        <label class="block tag-badge text-rx-green/50 mb-2 !px-0 flex justify-between items-center">
           Signs & Symptoms
           {#if isFetchingSuggestions}
-            <svg class="w-3 h-3 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <svg class="w-3 h-3 text-rx-yellow animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
           {/if}
         </label>
-        <div class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex flex-wrap gap-2 items-center focus-within:border-slate-400 focus-within:shadow-sm transition-all min-h-[50px] relative">
+        <div class="w-full bg-rx-cream border border-rx-peach rounded-lg p-2.5 flex flex-wrap gap-2 items-center focus-within:border-rx-green focus-within:shadow-sm transition-all min-h-[50px] relative">
           
           {#each symptoms as symptom, i}
-            <div class="px-3 py-1.5 rounded-full bg-white/40 backdrop-blur-md border border-white shadow-sm flex items-center gap-1.5 text-sm font-bold text-slate-700 animate-in zoom-in-95 duration-200">
+            <div class="px-3 py-1.5 rounded-full bg-white border border-rx-peach shadow-sm flex items-center gap-1.5 text-sm font-bold text-rx-green animate-in zoom-in-95 duration-200">
               {symptom}
-              <button onclick={() => removeSymptom(i)} class="text-slate-400 hover:text-red-500 transition-colors">
+              <button onclick={() => removeSymptom(i)} class="text-rx-green/50 hover:text-red-500 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -430,14 +430,14 @@
               bind:value={currentSymptomInput} 
               onkeydown={handleSymptomKeydown}
               placeholder={symptoms.length === 0 ? "Type symptom & press Enter..." : "Add another..."} 
-              class="w-full bg-transparent border-none outline-none text-sm font-medium text-slate-900 placeholder:text-slate-400"
+              class="input-search !text-sm"
             />
           </div>
         </div>
       </div>
       
-      <div class="mt-4 pt-6 border-t border-slate-100">
-        <label class="block text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2 flex items-center justify-between">
+      <div class="mt-4 pt-6 border-t border-rx-peach">
+        <label class="block tag-badge text-rx-green mb-2 !px-0 flex items-center justify-between">
           <span class="flex items-center gap-2">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             DrugIndex API Integration
@@ -446,13 +446,13 @@
 
         {#if suggestedIngredients.length > 0}
            <div class="mb-4 flex flex-wrap gap-2 animate-in slide-in-from-top-2">
-             <span class="text-xs font-bold text-slate-400 uppercase tracking-widest w-full mb-0.5">Matched from DrugIndex:</span>
+             <span class="text-xs font-bold text-rx-green/50 uppercase tracking-widest w-full mb-0.5">Matched from DrugIndex:</span>
              {#each suggestedIngredients as ingredient}
                 <button 
                   onclick={() => selectGenericDrug(ingredient)}
-                  class="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 text-left"
+                  class="btn-ghost !py-1.5 !px-3 !text-xs !justify-start"
                 >
-                  <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                  <svg class="w-3 h-3 shrink-0 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                   <span class="truncate max-w-[200px]">{ingredient.name}</span>
                 </button>
              {/each}
@@ -462,9 +462,9 @@
         <div class="relative">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             {#if isSearchingDrugs || isCheckingSafety || isLoadingVariants}
-              <svg class="w-4 h-4 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <svg class="w-4 h-4 text-rx-yellow animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
             {:else}
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <svg class="w-4 h-4 text-rx-green/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             {/if}
           </div>
           
@@ -474,18 +474,18 @@
             oninput={handleDrugInput}
             placeholder="Search to add drug..." 
             disabled={pendingVariantSelection !== null}
-            class="w-full bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-sm rounded-lg pl-10 pr-3 py-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:bg-slate-50 disabled:text-slate-500" 
+            class="input-standard pl-10 pr-3 py-3 disabled:opacity-50 disabled:bg-rx-cream" 
           />
 
           {#if drugSearchResults.length > 0 && !pendingVariantSelection}
-            <div class="absolute top-full left-0 w-full bg-white border border-slate-200 shadow-xl rounded-lg mt-2 z-50 overflow-hidden max-h-48 overflow-y-auto">
+            <div class="absolute top-full left-0 w-full bg-white border border-rx-peach shadow-xl rounded-lg mt-2 z-50 overflow-hidden max-h-48 overflow-y-auto">
               {#each drugSearchResults as drug}
                 <button 
                   onclick={() => selectDrugBase(drug)} 
-                  class="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors flex items-center justify-between group"
+                  class="w-full text-left px-4 py-3 hover:bg-rx-cream border-b border-rx-cream last:border-0 transition-colors flex items-center justify-between group"
                 >
-                  <span class="text-sm font-bold text-slate-900">{drug.name}</span>
-                  <svg class="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                  <span class="text-sm font-bold text-rx-green">{drug.name}</span>
+                  <svg class="w-4 h-4 text-rx-green/30 group-hover:text-rx-green transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 </button>
               {/each}
             </div>
@@ -493,20 +493,20 @@
         </div>
 
         {#if pendingVariantSelection && availableVariants.length > 0}
-           <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4 animate-in slide-in-from-top-2">
+           <div class="mt-3 bg-rx-cream border border-rx-peach rounded-xl p-4 animate-in slide-in-from-top-2">
               <div class="flex justify-between items-center mb-3">
-                 <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Select Formulation</h4>
-                 <button onclick={cancelVariantSelection} class="text-xs font-bold text-slate-400 hover:text-slate-700 uppercase tracking-wider">Cancel</button>
+                 <h4 class="tag-badge text-rx-green/50 !px-0">Select Formulation</h4>
+                 <button onclick={cancelVariantSelection} class="tag-badge text-rx-green/50 hover:text-rx-green !px-0">Cancel</button>
               </div>
               <div class="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
                  {#each availableVariants as variant}
-                    <button onclick={() => selectVariant(variant)} class="w-full text-left bg-white border border-slate-200 hover:border-emerald-400 hover:shadow-sm rounded-lg p-3 transition-all flex justify-between items-center group">
+                    <button onclick={() => selectVariant(variant)} class="w-full text-left bg-white border border-rx-peach hover:border-rx-green hover:shadow-sm rounded-lg p-3 transition-all flex justify-between items-center group">
                        <div>
-                          <p class="text-sm font-bold text-slate-900">{variant.strength || 'Standard'}</p>
-                          <p class="text-xs font-medium text-slate-500 mt-0.5">{variant.dosage_form || 'Formulation'}</p>
+                          <p class="text-sm font-bold text-rx-green">{variant.strength || 'Standard'}</p>
+                          <p class="text-xs font-medium text-rx-green/70 mt-0.5">{variant.dosage_form || 'Formulation'}</p>
                        </div>
-                       <div class="w-6 h-6 rounded-full border border-slate-200 group-hover:border-emerald-500 group-hover:bg-emerald-50 flex items-center justify-center transition-colors">
-                          <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                       <div class="w-6 h-6 rounded-full border border-rx-peach group-hover:border-rx-green group-hover:bg-rx-cream flex items-center justify-center transition-colors">
+                          <div class="w-2.5 h-2.5 rounded-full bg-rx-green opacity-0 group-hover:opacity-100 transition-opacity"></div>
                        </div>
                     </button>
                  {/each}
@@ -554,22 +554,22 @@
         {#if prescribedDrugs.length > 0}
           <div class="mt-4 flex flex-col gap-3">
             {#each prescribedDrugs as drug, i}
-              <div class="flex flex-col bg-emerald-50 border border-emerald-100 p-3 rounded-xl animate-in fade-in slide-in-from-bottom-2">
+              <div class="flex flex-col bg-rx-cream border border-rx-peach p-3 rounded-xl animate-in fade-in slide-in-from-bottom-2">
                 <div class="flex items-start justify-between mb-2">
                   <div>
-                     <p class="text-sm font-semibold text-emerald-900 leading-tight pr-2">{drug.name}</p>
-                     <p class="text-xs font-medium text-emerald-700 mt-0.5">({drug.formulation})</p>
+                     <p class="text-sm font-semibold text-rx-green leading-tight pr-2">{drug.name}</p>
+                     <p class="text-xs font-medium text-rx-green/70 mt-0.5">({drug.formulation})</p>
                   </div>
-                  <button onclick={() => removeDrug(i)} class="p-1.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-200/50 rounded-md transition-colors shrink-0" title="Remove drug">
+                  <button onclick={() => removeDrug(i)} class="p-1.5 text-rx-green/60 hover:text-red-600 hover:bg-white rounded-md transition-colors shrink-0" title="Remove drug">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                   </button>
                 </div>
                 <div class="flex gap-2 mt-1">
                    <div class="flex-1">
-                      <input type="text" bind:value={drug.dosage} placeholder="Dosage (e.g. 1x3)" class="w-full bg-white border border-emerald-200 rounded-lg p-2 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-400 transition-colors" />
+                      <input type="text" bind:value={drug.dosage} placeholder="Dosage (e.g. 1x3)" class="input-standard !p-2 !text-xs" />
                    </div>
                    <div class="w-24 shrink-0">
-                      <input type="number" bind:value={drug.days} placeholder="Days" class="w-full bg-white border border-emerald-200 rounded-lg p-2 text-xs font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-emerald-400 transition-colors" />
+                      <input type="number" bind:value={drug.days} placeholder="Days" class="input-standard !p-2 !text-xs" />
                    </div>
                 </div>
               </div>
@@ -579,8 +579,8 @@
 
       </div>
     </div>
-    <div class="p-6 border-t border-slate-100 bg-white shrink-0">
-      <button onclick={saveAndDispense} disabled={isSaving} class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-sans font-semibold text-sm transition-colors shadow-sm flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+    <div class="p-6 border-t border-rx-peach bg-white shrink-0">
+      <button onclick={saveAndDispense} disabled={isSaving} class="btn-primary w-full py-3 !rounded-xl">
         {#if isSaving}
           <svg class="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
           Saving Prescriptions...

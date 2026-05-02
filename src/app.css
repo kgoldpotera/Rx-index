@@ -31,3 +31,68 @@
   font-weight: 700;
   font-display: swap;
 }
+
+@layer components {
+  /* Layout & Base */
+  .bg-app-base {
+    @apply bg-rx-cream text-rx-green;
+  }
+  
+  /* Typography */
+  .text-heading {
+    @apply font-display font-bold text-rx-green tracking-tight;
+  }
+  .text-subheading {
+    @apply font-sans font-medium text-rx-green/70 leading-relaxed;
+  }
+  .tag-badge {
+    @apply text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded;
+  }
+  
+  /* Cards & Containers */
+  .card-base {
+    @apply bg-white border border-rx-peach shadow-sm rounded-2xl p-6 transition-all;
+  }
+  .dashboard-panel {
+    @apply bg-white border border-rx-peach shadow-md rounded-2xl overflow-hidden;
+  }
+  .modal-panel {
+    @apply bg-white border-l border-rx-peach shadow-2xl;
+  }
+  .drawer-backdrop {
+    @apply bg-rx-green/20 backdrop-blur-sm transition-opacity duration-300;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply bg-rx-green text-white hover:bg-rx-green/90 px-5 py-2.5 rounded-lg shadow-sm font-sans font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-rx-yellow text-rx-green hover:bg-rx-yellow/90 px-5 py-2.5 rounded-lg shadow-sm font-sans font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply bg-white border border-rx-peach hover:bg-rx-cream text-rx-green px-4 py-2.5 rounded-lg font-sans font-semibold text-sm transition-colors flex items-center justify-center gap-2;
+  }
+
+  /* Inputs */
+  .input-standard {
+    @apply w-full bg-white border border-rx-peach focus:border-rx-green focus:ring-1 focus:ring-rx-green shadow-sm rounded-lg px-3 py-2.5 text-sm font-medium text-rx-green placeholder:text-rx-green/40 outline-none transition-all;
+  }
+  .input-search {
+    @apply w-full bg-transparent border-none outline-none font-sans text-xl text-rx-green placeholder:text-rx-green/40 font-medium;
+  }
+  
+  /* Floating Dock & Nav */
+  .dock-container {
+    @apply bg-white/80 backdrop-blur-md border border-rx-peach shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-full px-2 py-2 flex items-center gap-1;
+  }
+  .nav-item {
+    @apply relative p-3 rounded-full text-rx-green/50 hover:text-rx-green hover:bg-rx-cream transition-colors;
+  }
+  .nav-item-active {
+    @apply relative p-3 rounded-full bg-rx-cream text-rx-green transition-colors;
+  }
+  .nav-tooltip {
+    @apply absolute -top-10 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-rx-green text-white text-[10px] font-bold tracking-widest uppercase rounded-md opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0 transition-all duration-200 pointer-events-none whitespace-nowrap shadow-sm border border-rx-green/80;
+  }
+}

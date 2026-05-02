@@ -70,29 +70,31 @@
 <section bind:this={sectionRef} class="relative w-full h-screen bg-white overflow-hidden font-sans">
   <canvas bind:this={canvasRef} class="absolute inset-0 w-full h-full z-0"></canvas>
   
-  <div bind:this={card1} class="absolute inset-0 m-auto flex flex-col justify-center items-center text-center z-10 pointer-events-none px-4 w-full">
-    <h1 class="font-display text-5xl md:text-8xl font-semibold text-slate-900 tracking-tightest leading-tight">
-      Modernised Dispensing.<br/>
-      <span class="text-slate-900">Uninterrupted Care.</span>
+  <div bind:this={card1} class="absolute inset-0 m-auto flex flex-col justify-center items-center text-center z-20 pointer-events-none px-6 pt-32 pb-16 w-full">
+    <h1 class="font-display text-5xl md:text-7xl font-bold text-rx-green tracking-tight mb-6 leading-[1.1]">
+      Care without compromise.
     </h1>
-    <p class="font-sans text-lg md:text-xl text-slate-500 mt-6 max-w-3xl font-medium leading-relaxed">
-      The operating system for modern high school sanatoriums. Secure, offline-first medication management designed specifically for unpredictable network environments.
+    <p class="font-sans text-lg md:text-xl text-rx-green/80 max-w-xl mx-auto font-medium mb-10 leading-relaxed">
+      The offline-first application for modern school sanatoriums.
     </p>
+    <a href="/app" class="bg-rx-green hover:opacity-90 text-white px-8 py-3.5 rounded-xl font-sans font-bold text-sm transition-all shadow-sm pointer-events-auto">
+      Enter Workspace
+    </a>
   </div>
 
-  <div bind:this={card2} class="absolute top-1/3 left-6 md:left-24 z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-slate-200/60 rounded-[2rem] shadow-2xl shadow-slate-200/40 p-10 max-w-sm">
-    <h2 class="font-display text-3xl font-semibold text-slate-900 mb-3 tracking-tightest">Smart Dispensing.</h2>
-    <p class="font-sans text-lg text-slate-500 leading-relaxed font-medium">Eliminate manual errors with automated, offline-first prescription logging designed for secure environments.</p>
+  <div bind:this={card2} class="absolute top-1/3 left-6 md:left-24 z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-rx-peach/60 rounded-[2rem] shadow-2xl p-10 max-w-sm">
+    <h2 class="text-heading text-3xl mb-3">Smart Dispensing.</h2>
+    <p class="text-subheading text-lg">Eliminate manual errors with automated, offline-first prescription logging designed for secure environments.</p>
   </div>
 
-  <div bind:this={card3} class="absolute top-1/3 right-6 md:right-24 z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-slate-200/60 rounded-[2rem] shadow-2xl shadow-slate-200/40 p-10 max-w-sm">
-    <h2 class="font-display text-3xl font-semibold text-slate-900 mb-3 tracking-tightest">Continuous Adherence.</h2>
-    <p class="font-sans text-lg text-slate-500 leading-relaxed font-medium">Track every dose. Our system ensures students never miss critical medication, even when the network drops.</p>
+  <div bind:this={card3} class="absolute top-1/3 right-6 md:right-24 z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-rx-peach/60 rounded-[2rem] shadow-2xl p-10 max-w-sm">
+    <h2 class="text-heading text-3xl mb-3">Continuous Adherence.</h2>
+    <p class="text-subheading text-lg">Track every dose. Our system ensures students never miss critical medication, even when the network drops.</p>
   </div>
 
-  <div bind:this={card4} class="absolute bottom-16 left-0 right-0 mx-auto z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-slate-200/60 rounded-[2rem] shadow-2xl shadow-slate-200/40 p-10 max-w-md text-center flex flex-col items-center">
-    <h2 class="font-display text-3xl font-semibold text-slate-900 mb-3 tracking-tightest">RxIndex Secured.</h2>
-    <p class="font-sans text-lg text-slate-500 leading-relaxed font-medium">Cryptographically verified. Real-time API drug verification syncs the moment you are back online.</p>
-    <div class="w-4 h-4 rounded-full bg-emerald-500 mt-6 shadow-[0_0_20px_rgba(16,185,129,0.8)]"></div>
+  <div bind:this={card4} class="absolute bottom-16 left-0 right-0 mx-auto z-10 opacity-0 pointer-events-none bg-white/60 backdrop-blur-3xl border border-rx-peach/60 rounded-[2rem] shadow-2xl p-10 max-w-md text-center flex flex-col items-center">
+    <h2 class="text-heading text-3xl mb-3">RxIndex Secured.</h2>
+    <p class="text-subheading text-lg">Cryptographically verified. Real-time API drug verification syncs the moment you are back online.</p>
+    <div class="w-4 h-4 rounded-full bg-rx-green mt-6 shadow-[0_0_20px_rgba(6,65,36,0.5)]"></div>
   </div>
 </section>
