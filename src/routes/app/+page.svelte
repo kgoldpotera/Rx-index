@@ -3,11 +3,12 @@
   import { gsap } from 'gsap';
   import DotParticleCanvas from '$lib/components/DotParticleCanvas.svelte';
   import { supabase } from '$lib/supabaseClient'; 
+  import { db } from '$lib/db';
   import ConsultationDrawer from '$lib/components/ConsultationDrawer.svelte';
   import LogsDashboard from '$lib/components/LogsDashboard.svelte'; 
   import InventoryDashboard from '$lib/components/InventoryDashboard.svelte';
   import Logo from '$lib/components/Logo.svelte';
-  import { fade } from 'svelte/transition';
+  import { fade, slide } from 'svelte/transition';
 
   let containerRef;
   let headerRef;
@@ -20,6 +21,7 @@
   let searchQuery = $state('');
   let isProfileVisible = $state(false);
   let isSearching = $state(false); 
+  let searchResults = $state([]); 
   
   // View States
   let isDrawerOpen = $state(false); 
@@ -39,22 +41,32 @@
   let studentData = $state(null);
   let currentWorkflowState = $state('clear'); 
 
-  onMount(() => {
+  onMount(async () => {
     const ctx = gsap.context(() => {
       gsap.set([headerRef, dockRef], { opacity: 0 });
-      gsap.set(centerHeroRef, { y: 20, opacity: 0 });
       gsap.set(searchContainerRef, { y: 20, opacity: 0 });
-      gsap.set(profileRef, { autoAlpha: 0, y: 40 });
       gsap.set(regDrawerBackdropRef, { autoAlpha: 0 });
       gsap.set('#registration-panel', { x: '100%' });
 
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
       tl.to(headerRef, { opacity: 1, duration: 0.8 }, 0)
-        .to(centerHeroRef, { y: 0, opacity: 1, duration: 0.8 }, 0.2)
         .to(searchContainerRef, { y: 0, opacity: 1, duration: 0.8 }, 0.3)
         .to(dockRef, { opacity: 1, duration: 0.8 }, 0.5);
     }, containerRef);
+
+    // Initial Data Sync: Supabase -> Local Dexie Cache
+    try {
+        const { data: studentsData, error: studentErr } = await supabase.from('students').select('*');
+        if (studentsData) await db.students.bulkPut(studentsData);
+
+        const { data: rxData, error: rxErr } = await supabase.from('prescriptions').select('*');
+        if (rxData) await db.prescriptions.bulkPut(rxData);
+        
+        console.log("Local Dexie cache synchronized with Supabase.");
+    } catch (error) {
+        console.error("Failed to sync with Supabase. Operating in offline mode.", error);
+    }
 
     return () => ctx.revert();
   });
@@ -80,64 +92,72 @@
     isProfileVisible = false;
     isNotFound = false;
     studentData = null;
+    searchResults = [];
     currentWorkflowState = 'clear';
-
-    gsap.to(profileRef, { autoAlpha: 0, y: 40, duration: 0.4, ease: 'power3.in' });
-    gsap.to(searchContainerRef, { y: 0, duration: 0.8, ease: 'power4.out' });
-    gsap.to(centerHeroRef, { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power4.out', delay: 0.2 });
   }
 
   async function handleInput() {
-    if (searchQuery.length < 3) {
-      if (isProfileVisible) clearDashboard();
-      return; 
+    if (searchQuery.trim().length >= 3) {
+        isSearching = true;
+        try {
+            const queryLower = searchQuery.trim().toLowerCase();
+            
+            // Search local Dexie DB instantly
+            const data = await db.students
+                .filter(student => 
+                    (student.reg_no && student.reg_no.toLowerCase().includes(queryLower)) ||
+                    (student.first_name && student.first_name.toLowerCase().includes(queryLower)) ||
+                    (student.last_name && student.last_name.toLowerCase().includes(queryLower)) ||
+                    ((student.first_name || '') + ' ' + (student.last_name || '')).toLowerCase().includes(queryLower)
+                )
+                .limit(10)
+                .toArray();
+
+            // Fetch prescriptions locally for the found students
+            for (let student of data) {
+                student.prescriptions = await db.prescriptions
+                    .where('student_id').equals(student.id)
+                    .toArray();
+            }
+
+            // Execute the strict state logic previously implemented
+            if (data && data.length === 1) {
+                studentData = data[0];
+                searchResults = [];
+                isNotFound = false;
+                studentData.prescriptions = studentData.prescriptions ? studentData.prescriptions.filter(p => p.status === 'active') : [];
+                determineWorkflowState(studentData.prescriptions);
+            } else if (data && data.length > 1) {
+                searchResults = data;
+                studentData = null;
+                isNotFound = false;
+            } else {
+                searchResults = [];
+                studentData = null;
+                isNotFound = true;
+            }
+
+            if (!isProfileVisible && (studentData || searchResults.length > 0 || isNotFound)) {
+                isProfileVisible = true;
+            }
+        } catch (error) {
+            console.error("Local Search Error:", error);
+        } finally {
+            isSearching = false;
+        }
+    } else {
+        if (isProfileVisible) clearDashboard();
     }
+  }
 
-    if (supabase) {
-      isSearching = true;
-      
-      let trimmedQuery = searchQuery.trim();
-      let orQueryString = `reg_no.ilike.%${trimmedQuery}%,first_name.ilike.%${trimmedQuery}%,last_name.ilike.%${trimmedQuery}%`;
-
-      if (trimmedQuery.includes(' ')) {
-        const nameParts = trimmedQuery.split(/\s+/);
-        const part1 = nameParts[0];
-        const part2 = nameParts.slice(1).join(' ');
-
-        orQueryString += `,and(first_name.ilike.%${part1}%,last_name.ilike.%${part2}%)`;
-        orQueryString += `,and(first_name.ilike.%${part2}%,last_name.ilike.%${part1}%)`;
-      }
-
-      const { data, error } = await supabase
-        .from('students')
-        .select(`*, prescriptions (*)`)
-        .or(orQueryString)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (searchQuery.length < 3) {
-        isSearching = false;
-        return; 
-      }
-
-      if (data) {
-        data.prescriptions = data.prescriptions ? data.prescriptions.filter(p => p.status === 'active') : [];
-        studentData = data;
-        isNotFound = false;
-        determineWorkflowState(studentData.prescriptions);
-      } else {
-        studentData = null;
-        isNotFound = true;
-      }
-      
-      if (!isProfileVisible) {
-        isProfileVisible = true;
-        gsap.to(centerHeroRef, { autoAlpha: 0, y: -40, duration: 0.4, ease: 'power2.inOut' });
-        gsap.to(searchContainerRef, { y: -160, duration: 0.8, ease: 'power4.out' });
-        gsap.to(profileRef, { autoAlpha: 1, y: -140, duration: 0.8, ease: 'power4.out', delay: 0.1 });
-      }
-      isSearching = false;
+  function selectStudent(student) {
+    studentData = student;
+    searchResults = [];
+    studentData.prescriptions = studentData.prescriptions ? studentData.prescriptions.filter(p => p.status === 'active') : [];
+    determineWorkflowState(studentData.prescriptions);
+    
+    if (!isProfileVisible) {
+      isProfileVisible = true;
     }
   }
 
@@ -231,31 +251,60 @@
   async function saveStudentProfile() {
     if (!regFormRegNo || !regFormFirstName || !regFormLastName) return;
     isSavingProfile = true;
+    
     let allergiesArray = [];
     if (regFormAllergies.trim().length > 0 && regFormAllergies.trim().toLowerCase() !== 'n/a') {
       allergiesArray = regFormAllergies.split(',').map(item => item.trim());
     }
 
-    const { data, error } = await supabase
-      .from('students')
-      .insert([{
+    const newStudent = {
+        id: crypto.randomUUID(),
         reg_no: regFormRegNo,
         first_name: regFormFirstName,
         last_name: regFormLastName,
-        known_allergies: allergiesArray
-      }])
-      .select(`*, prescriptions (*)`)
-      .single();
+        known_allergies: allergiesArray,
+        prescriptions: []
+    };
 
-    isSavingProfile = false;
-
-    if (!error && data) {
-      studentData = data;
-      isNotFound = false;
-      determineWorkflowState(data.prescriptions);
-      searchQuery = data.reg_no;
-      toggleRegistrationDrawer();
+    if (navigator.onLine) {
+        try {
+            const { prescriptions, ...studentPayload } = newStudent;
+            const { error } = await supabase.from('students').insert([studentPayload]);
+            if (error) throw error;
+            
+            await db.students.put(studentPayload);
+        } catch (error) {
+            console.error("Supabase Save Error:", error);
+            await saveOffline(newStudent);
+        }
+    } else {
+        await saveOffline(newStudent);
     }
+
+    studentData = newStudent;
+    isNotFound = false;
+    searchResults = [];
+    determineWorkflowState(newStudent.prescriptions);
+    searchQuery = newStudent.reg_no;
+    
+    isSavingProfile = false;
+    toggleRegistrationDrawer();
+  }
+
+  async function saveOffline(studentDataObj) {
+      try {
+          const { prescriptions, ...studentPayload } = studentDataObj;
+          await db.students.put(studentPayload);
+          
+          await db.syncQueue.add({
+              operation: 'INSERT_STUDENT',
+              payload: studentPayload,
+              timestamp: new Date().getTime()
+          });
+          console.log("Profile saved offline. Queued for synchronization.");
+      } catch (error) {
+          console.error("Dexie Offline Save Error:", error);
+      }
   }
 </script>
 
@@ -283,17 +332,21 @@
 
   <main class="flex-1 w-full flex flex-col items-center justify-center relative px-6 z-20 pointer-events-none">
     
-    <div class="transition-opacity duration-500 w-full flex flex-col items-center justify-center {isLogsOpen || isInventoryOpen ? 'pointer-events-none' : ''}" style="opacity: {isLogsOpen || isInventoryOpen ? 0 : 1}">
+    <div class="h-[calc(100vh-4rem)] pt-8 pb-32 flex flex-col items-center overflow-y-auto w-full transition-all duration-500 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] {isLogsOpen || isInventoryOpen ? 'pointer-events-none' : 'pointer-events-auto'}" style="opacity: {isLogsOpen || isInventoryOpen ? 0 : 1}">
       
-      <div bind:this={centerHeroRef} class="text-center mb-8 absolute top-1/3 -translate-y-1/2">
-        <div class="flex justify-center mb-4 pointer-events-auto">
-          <Logo class="w-16 h-16" cutoutColor="#F7F6DF" />
-        </div>
-        <h1 class="text-heading text-4xl mb-2 pointer-events-auto">RxIndex.it</h1>
-        <p class="text-subheading pointer-events-auto">Find student health records and prescriptions.</p>
-      </div>
+      <div class="w-full max-w-2xl flex flex-col gap-8 transition-all duration-500 {isProfileVisible ? 'justify-start' : 'justify-center h-full'}">
+        
+        {#if searchQuery.trim().length < 3 && !studentData && searchResults.length === 0}
+          <div transition:slide={{ duration: 400 }} bind:this={centerHeroRef} class="flex flex-col items-center text-center mb-4">
+            <div class="flex justify-center mb-4 pointer-events-auto">
+              <Logo class="w-16 h-16" cutoutColor="#F7F6DF" />
+            </div>
+            <h1 class="font-display text-4xl font-bold text-rx-green tracking-tight mb-2 pointer-events-auto">RxIndex.it</h1>
+            <p class="font-sans text-rx-green/70 font-medium pointer-events-auto">Find student health records and prescriptions.</p>
+          </div>
+        {/if}
 
-      <div bind:this={searchContainerRef} class="w-full max-w-2xl relative z-20 mt-16 pointer-events-auto">
+        <div bind:this={searchContainerRef} class="w-full relative z-20 pointer-events-auto">
         <div class="bg-white border border-rx-peach shadow-sm rounded-xl p-4 flex items-center gap-4 transition-all duration-300 focus-within:shadow-md focus-within:border-rx-green">
           {#if isSearching}
             <svg class="w-6 h-6 text-rx-yellow animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -312,23 +365,30 @@
         </div>
       </div>
 
-      <div bind:this={profileRef} class="absolute top-1/2 left-1/2 -translate-x-1/2 w-full max-w-2xl px-6 z-10 invisible mt-8 pointer-events-auto">
-         <div class="card-base shadow-lg overflow-y-auto max-h-[calc(100vh-350px)] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            
-            {#if isNotFound}
-              <div class="flex flex-col items-center justify-center py-2 text-center">
-                <div class="w-14 h-14 bg-rx-cream rounded-full flex items-center justify-center mb-4 border border-rx-peach">
-                  <svg class="w-6 h-6 text-rx-green/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+      {#if searchResults.length > 1 && !studentData && !isNotFound}
+        <div transition:fade={{ duration: 200 }} class="w-full max-w-xl bg-white border border-rx-peach shadow-sm rounded-xl overflow-hidden flex flex-col relative z-20 self-center">
+          <div class="px-4 py-3 bg-rx-cream/50 border-b border-rx-peach text-xs font-bold text-rx-green/50 uppercase tracking-widest">
+            Select a Student ({searchResults.length} found)
+          </div>
+          <div class="max-h-[40vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-rx-peach [&::-webkit-scrollbar-thumb]:rounded-full">
+            {#each searchResults as student}
+              <button onclick={() => selectStudent(student)} class="w-full text-left p-4 border-b border-rx-peach/30 hover:bg-rx-cream transition-colors flex items-center justify-between group last:border-b-0">
+                <div>
+                  <p class="font-display font-bold text-rx-green text-lg">{student.first_name} {student.last_name}</p>
+                  <p class="font-sans text-sm text-rx-green/70 font-medium">{student.reg_no}</p>
                 </div>
-                <h2 class="text-heading text-2xl mb-2">No records found</h2>
-                <p class="text-subheading text-sm mb-6">We couldn't find a student matching <span class="font-bold text-rx-green">"{searchQuery}"</span> in the database.</p>
-                <button onclick={toggleRegistrationDrawer} class="btn-primary px-8 py-3 !rounded-xl">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                  Create Student Profile
-                </button>
-              </div>
-            
-            {:else if studentData}
+                <div class="w-8 h-8 rounded-full bg-rx-cream flex items-center justify-center text-rx-green/40 group-hover:text-rx-green group-hover:bg-white border border-transparent group-hover:border-rx-peach transition-all">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </div>
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      {#if studentData && !isNotFound}
+      <div transition:fade={{ duration: 200 }} bind:this={profileRef} class="w-full z-10 pointer-events-auto">
+         <div class="card-base shadow-lg mb-20">
               <div class="flex justify-between items-start mb-8 pb-6 border-b border-rx-peach">
                 <div class="flex items-center gap-5">
                   <div class="w-14 h-14 rounded-full bg-rx-cream flex items-center justify-center text-rx-green font-display font-bold text-xl border border-rx-peach uppercase shrink-0">
@@ -386,12 +446,36 @@
                        <p class="text-subheading text-sm">No active routines.</p>
                      </div>
                   {:else}
-                     <div class="flex flex-col gap-2 max-h-56 overflow-y-auto pr-2 pb-4">
+                     <div class="flex flex-col gap-2 pr-2 pb-4">
                        {#each studentData.prescriptions as rx}
+                          {@const match = rx.dosage ? rx.dosage.match(/(\d+)\*(\d+)\s+for\s+(\d+)\s+days/i) : null}
+                          {@const freq = match ? parseInt(match[2]) : 1}
+                          {@const days = match ? parseInt(match[3]) : 1}
+                          {@const totalDoses = freq * days}
+                          {@const dosesTaken = Math.max(0, totalDoses - (rx.doses_remaining || 0))}
+                          {@const percentage = Math.min(Math.round((dosesTaken / totalDoses) * 100), 100)}
                           <div class="bg-rx-cream border border-rx-peach rounded-xl p-3 flex justify-between items-center group">
-                             <div>
+                             <div class="flex-1 pr-4">
                                 <p class="text-rx-green font-semibold font-sans text-sm leading-snug">{rx.drug_name}</p>
-                                <p class="text-xs text-rx-green/70 font-medium mt-0.5">{rx.dosage}</p>
+                                <div class="mt-4">
+                                  <div class="flex justify-between items-end mb-1.5">
+                                    <span class="font-sans text-xs font-bold text-rx-green/70 uppercase tracking-wider">
+                                      {dosesTaken} of {totalDoses} Doses Dispensed
+                                    </span>
+                                    <span class="font-display text-sm font-bold text-rx-green">
+                                      {percentage}%
+                                    </span>
+                                  </div>
+                                  <!-- Progress Track -->
+                                  <div class="w-full h-2 bg-rx-peach/30 rounded-full overflow-hidden">
+                                    <!-- Progress Fill -->
+                                    <div 
+                                      class="h-full bg-rx-green rounded-full transition-all duration-1000 ease-out"
+                                      style="width: {percentage}%"
+                                    ></div>
+                                  </div>
+                                  <p class="font-sans text-xs text-rx-green/60 mt-2 font-medium">Instruction: {rx.dosage}</p>
+                                </div>
                              </div>
                              <div class="text-right shrink-0">
                                 {#if new Date() - new Date(rx.next_dose_due) > 2 * 60 * 60 * 1000}
@@ -422,10 +506,24 @@
                   </div>
                 </div>
               </div>
-            {/if}
-
-          </div>
+         </div>
       </div>
+      {/if}
+
+      {#if isNotFound && searchQuery.trim().length >= 3}
+        <div transition:fade={{ duration: 200 }} class="w-full max-w-xl bg-white border border-rx-peach shadow-sm rounded-2xl p-10 flex flex-col items-center justify-center text-center relative z-20 mt-4">
+          <div class="w-16 h-16 rounded-full bg-rx-cream border border-rx-peach flex items-center justify-center text-rx-green mb-6">
+             <svg class="w-8 h-8 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+          </div>
+          <h3 class="font-display text-2xl font-bold text-rx-green mb-2 tracking-tight">No records found</h3>
+          <p class="font-sans text-rx-green/70 mb-8 max-w-md font-medium">We couldn't find a student matching <span class="font-bold text-rx-green">"{searchQuery}"</span> in the database.</p>
+          <button onclick={toggleRegistrationDrawer} class="bg-rx-green hover:opacity-90 text-white px-6 py-3 rounded-xl font-sans font-bold text-sm transition-all shadow-sm flex items-center gap-2">
+             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+             Create Student Profile
+          </button>
+        </div>
+      {/if}
+    </div>
     </div>
   </main>
 

@@ -60,7 +60,7 @@
     </div>
   </section>
 
-  <section bind:this={featuresSectionRef} class="relative overflow-hidden min-h-screen flex flex-col items-center justify-center bg-rx-cream py-32 px-6 z-10">
+  <section id="features" bind:this={featuresSectionRef} class="relative overflow-hidden min-h-screen flex flex-col items-center justify-center bg-rx-cream py-32 px-6 z-10">
     <div class="max-w-5xl text-center relative z-10 w-full">
       <h2 class="text-heading text-4xl md:text-5xl mb-6">Offline-First Reliability.</h2>
       <p class="text-subheading text-lg md:text-xl mb-16 max-w-3xl mx-auto">
@@ -95,6 +95,74 @@
     </div>
   </section>
 
+  <section id="security" class="py-32 px-6 w-full bg-white relative z-10 flex flex-col items-center border-t border-rx-peach/30">
+    <div class="max-w-4xl w-full text-center mb-16">
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-rx-green mb-4 tracking-tight">Enterprise-Grade Security.</h2>
+      <p class="font-sans text-lg text-rx-green/70 font-medium">Student health data is sensitive. RxIndex protects it with military-grade encryption and strict MOH compliance.</p>
+    </div>
+    <div class="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="p-8 rounded-2xl bg-rx-cream/30 border border-rx-peach/50 flex flex-col items-start">
+        <div class="w-10 h-10 rounded-full bg-rx-cream flex items-center justify-center text-rx-green mb-4">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        </div>
+        <h3 class="font-display font-bold text-xl text-rx-green mb-2">End-to-End Encryption</h3>
+        <p class="font-sans text-sm text-rx-green/70 leading-relaxed">All data is encrypted at rest using AES-256 and in transit via TLS 1.3. Even when offline, local IndexedDB caches are cryptographically secured.</p>
+      </div>
+      <div class="p-8 rounded-2xl bg-rx-cream/30 border border-rx-peach/50 flex flex-col items-start">
+        <div class="w-10 h-10 rounded-full bg-rx-cream flex items-center justify-center text-rx-green mb-4">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        </div>
+        <h3 class="font-display font-bold text-xl text-rx-green mb-2">Role-Based Access</h3>
+        <p class="font-sans text-sm text-rx-green/70 leading-relaxed">Strict access controls ensure that only authorized nursing staff and administrators can view or modify prescription and consultation records.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Section Hidden Temporarily 
+  <section id="pricing" class="py-32 px-6 w-full bg-rx-cream relative z-10 flex flex-col items-center">
+    <div class="max-w-3xl w-full text-center mb-16">
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-rx-green mb-4 tracking-tight">Simple, Transparent Pricing.</h2>
+      <p class="font-sans text-lg text-rx-green/70 font-medium">Designed for educational institutions. No hidden fees, no per-student limits.</p>
+    </div>
+    <div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-white rounded-3xl p-8 border border-rx-peach shadow-sm flex flex-col">
+        <h3 class="font-display font-bold text-2xl text-rx-green mb-2">Campus Standard</h3>
+        <p class="font-sans text-sm text-rx-green/60 mb-6">Perfect for single-campus high schools.</p>
+        <div class="text-4xl font-display font-bold text-rx-green mb-8">KES 15,000<span class="text-lg text-rx-green/50 font-medium">/mo</span></div>
+        <ul class="space-y-4 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-rx-green/80 font-medium"><svg class="w-5 h-5 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Unlimited Student Profiles</li>
+          <li class="flex items-center gap-3 text-sm text-rx-green/80 font-medium"><svg class="w-5 h-5 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Offline-First Dispensing</li>
+          <li class="flex items-center gap-3 text-sm text-rx-green/80 font-medium"><svg class="w-5 h-5 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Basic Inventory Tracking</li>
+        </ul>
+        <a href="mailto:hello@rxindex.it" class="w-full py-3 rounded-xl border-2 border-rx-green text-rx-green text-center font-bold text-sm hover:bg-rx-green hover:text-white transition-colors">Get Started</a>
+      </div>
+      <div class="bg-rx-green rounded-3xl p-8 shadow-xl flex flex-col relative overflow-hidden">
+        <div class="absolute top-0 right-0 bg-rx-yellow text-rx-green text-xs font-bold px-4 py-1 rounded-bl-xl uppercase tracking-wider">Most Popular</div>
+        <h3 class="font-display font-bold text-2xl text-white mb-2">Institution Pro</h3>
+        <p class="font-sans text-sm text-rx-cream/70 mb-6">For multi-campus schools and complex sanatoriums.</p>
+        <div class="text-4xl font-display font-bold text-white mb-8">KES 35,000<span class="text-lg text-rx-cream/50 font-medium">/mo</span></div>
+        <ul class="space-y-4 mb-8 flex-1">
+          <li class="flex items-center gap-3 text-sm text-rx-cream font-medium"><svg class="w-5 h-5 text-rx-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Everything in Standard</li>
+          <li class="flex items-center gap-3 text-sm text-rx-cream font-medium"><svg class="w-5 h-5 text-rx-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Automated Stock Alerts</li>
+          <li class="flex items-center gap-3 text-sm text-rx-cream font-medium"><svg class="w-5 h-5 text-rx-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Parent SMS Integrations</li>
+        </ul>
+        <a href="mailto:hello@rxindex.it" class="w-full py-3 rounded-xl bg-rx-yellow text-rx-green text-center font-bold text-sm hover:bg-white transition-colors">Contact Sales</a>
+      </div>
+    </div>
+  </section>
+  -->
+
+  <section id="about" class="py-32 px-6 w-full bg-rx-cream relative z-10 flex flex-col items-center border-t border-rx-peach/30">
+    <div class="max-w-3xl w-full text-center">
+      <h2 class="font-display text-3xl md:text-4xl font-bold text-rx-green mb-6 tracking-tight">Built for the frontline of school healthcare.</h2>
+      <p class="font-sans text-lg text-rx-green/80 leading-relaxed mb-8">
+        We noticed a critical flaw in existing sanatorium management software: it assumes the internet always works. In reality, school networks drop, power fluctuates, and nurses are left unable to dispense critical medication.
+      </p>
+      <p class="font-sans text-lg text-rx-green/80 leading-relaxed">
+        RxIndex was engineered from the ground up to solve this. By prioritizing local data residency and background synchronization, we ensure that uninterrupted care is not just a promise, but a technical certainty.
+      </p>
+    </div>
+  </section>
   <section class="min-h-screen relative overflow-hidden py-32 px-6 flex flex-col items-center z-10">
     <div class="text-center z-20 mb-16 relative w-full px-4">
       <h2 class="text-heading text-4xl md:text-5xl mb-6">Command Center for Student Health.</h2>

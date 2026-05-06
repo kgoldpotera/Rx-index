@@ -1,6 +1,39 @@
 <script>
   import { drugIndexApi } from '$lib/drugIndexClient';
   import { supabase } from '$lib/supabaseClient'; 
+  import { db } from '$lib/db';
+  import { fly } from 'svelte/transition';
+
+  const drugAliasMap = {
+      'panadol': 'paracetamol',
+      'calpol': 'paracetamol',
+      'maramoja': 'paracetamol',
+      'mara moja': 'paracetamol',
+      'brufen': 'ibuprofen',
+      'advil': 'ibuprofen',
+      'motrin': 'ibuprofen'
+  };
+
+  const drugClassMap = {
+      'paracetamol': 'painkiller',
+      'ibuprofen': 'painkiller',
+      'diclofenac': 'painkiller',
+      'amoxicillin': 'antibiotic',
+      'azithromycin': 'antibiotic'
+  };
+
+  function getCanonicalIngredient(drugName) {
+      let lowerName = drugName.toLowerCase().trim();
+      for (const [alias, generic] of Object.entries(drugAliasMap)) {
+          if (lowerName.includes(alias)) return generic;
+      }
+      return lowerName.split(/[\s,+/]/)[0];
+  }
+
+  function getDrugClass(drugName) {
+      const canonical = getCanonicalIngredient(drugName);
+      return drugClassMap[canonical] || null;
+  }
 
   let {
     isOpen,
@@ -27,10 +60,18 @@
   let isCheckingSafety = $state(false); 
   let allergyWarning = $state(null);
   let interactionWarning = $state(null); 
+  let polypharmacyWarning = $state(null);
+  let intraSessionWarning = $state(null);
 
   let pendingVariantSelection = $state(null); 
   let availableVariants = $state([]);
   let isLoadingVariants = $state(false);
+
+  let apiStatus = $state('online');
+  let manualDrugName = $state('');
+
+  let activeToast = $state('');
+  let toastTimeout;
 
   $effect(() => {
     if (!isOpen) {
@@ -46,6 +87,110 @@
       suggestedIngredients = [];
       vitalsTemp = '';
       vitalsWeight = '';
+      apiStatus = navigator.onLine ? 'online' : 'offline';
+      manualDrugName = '';
+      polypharmacyWarning = null;
+      activeToast = '';
+      if (toastTimeout) clearTimeout(toastTimeout);
+    }
+  });
+
+  $effect(() => {
+      let newDrugName = '';
+      let newDrugAiKey = null;
+
+      if (apiStatus === 'offline') {
+          newDrugName = manualDrugName.trim();
+      } else {
+          if (pendingVariantSelection) {
+              newDrugName = pendingVariantSelection.name;
+              newDrugAiKey = pendingVariantSelection.ai_key;
+          } else if (drugSearchQuery.length > 2) {
+              newDrugName = drugSearchQuery.trim();
+          }
+      }
+
+      if (newDrugName.length > 2 && studentData && studentData.prescriptions) {
+          const drugLower = newDrugName.toLowerCase();
+          const activeRxs = studentData.prescriptions.filter(p => p.status === 'active');
+          
+          let isDuplicate = false;
+          let warningDetails = '';
+
+          if (apiStatus === 'online' && newDrugAiKey) {
+              // 1. Check for exact name overlap
+              const exactMatch = activeRxs.find(rx => {
+                  const existingLower = rx.drug_name.toLowerCase();
+                  return existingLower.includes(drugLower) || drugLower.includes(existingLower);
+              });
+              
+              // 2. Check API 'ai_key' for active ingredient overlap (cross-brand duplication)
+              const ingredientMatch = activeRxs.find(rx => rx.ai_key && rx.ai_key === newDrugAiKey);
+
+              if (exactMatch || ingredientMatch) {
+                  isDuplicate = true;
+                  warningDetails = ingredientMatch && !exactMatch 
+                      ? `Overlapping active ingredients with ${ingredientMatch.drug_name}.` 
+                      : '';
+              }
+          } else {
+              // Fallback to basic string matching for offline mode or unselected search
+              const exactMatch = activeRxs.find(rx => {
+                  const existingLower = rx.drug_name.toLowerCase();
+                  return existingLower.includes(drugLower) || drugLower.includes(existingLower);
+              });
+              if (exactMatch) {
+                  isDuplicate = true;
+              }
+          }
+
+          if (isDuplicate) {
+              polypharmacyWarning = `POLYPHARMACY WARNING: Patient's active prescriptions conflict with this medication. ${warningDetails}`.trim();
+          } else {
+              polypharmacyWarning = null;
+          }
+      } else {
+          polypharmacyWarning = null;
+      }
+  });
+
+  $effect(() => {
+    // Check for intra-session conflicts in prescribedDrugs
+    // Svelte 5 reactivity is triggered because prescribedDrugs is reassigned with the spread operator
+    if (prescribedDrugs && prescribedDrugs.length > 1) {
+        let intraSessionConflict = false;
+        let conflictDetails = '';
+
+        for (let i = 0; i < prescribedDrugs.length; i++) {
+            for (let j = i + 1; j < prescribedDrugs.length; j++) {
+                const drugA = prescribedDrugs[i];
+                const drugB = prescribedDrugs[j];
+                
+                const classA = getDrugClass(drugA.name);
+                const classB = getDrugClass(drugB.name);
+
+                // 1. Taxonomy Class Overlap Check
+                const isClassConflict = classA && classB && classA === classB;
+                
+                // 2. Active Ingredient Overlap (using ai_key)
+                const isIngredientOverlap = drugA.ai_key && drugB.ai_key && drugA.ai_key === drugB.ai_key;
+
+                if (isClassConflict || isIngredientOverlap) {
+                    intraSessionConflict = true;
+                    conflictDetails = `${drugA.name} and ${drugB.name}`;
+                    break; 
+                }
+            }
+            if (intraSessionConflict) break;
+        }
+
+        if (intraSessionConflict) {
+            intraSessionWarning = `SESSION CONFLICT: You are prescribing interacting medications (${conflictDetails}). Proceed with caution.`;
+        } else {
+            intraSessionWarning = null;
+        }
+    } else {
+        intraSessionWarning = null;
     }
   });
 
@@ -118,9 +263,7 @@
     });
 
     if (dangerousAllergy) {
-      allergyWarning = `Contraindication found! Patient is allergic to "${dangerousAllergy}". Dispensing ${ingredient.name} has been blocked.`;
-      isCheckingSafety = false;
-      return; 
+      allergyWarning = `Contraindication found! Patient is allergic to "${dangerousAllergy}". Caution is advised.`;
     }
 
     // 2. DDI (INTERACTION) CHECK
@@ -155,8 +298,6 @@
              }
           }
           interactionWarning = warningMessage;
-          isCheckingSafety = false;
-          return; 
         }
       }
     }
@@ -171,6 +312,17 @@
     }, "Generic");
   }
 
+  function addManualDrug() {
+    if (manualDrugName.trim().length > 0) {
+       finalizeDrugSelection({ 
+           name: manualDrugName.trim(), 
+           brand_key: `manual_${crypto.randomUUID()}`, 
+           ai_key: null 
+       }, 'Manual Entry', null);
+       manualDrugName = '';
+    }
+  }
+
   // --- BRAND DRUG SEARCH LOGIC ---
   function handleDrugInput(e) {
     drugSearchQuery = e.target.value || e.target.value === '' ? e.target.value : drugSearchQuery;
@@ -180,6 +332,11 @@
     availableVariants = [];
     clearTimeout(drugSearchDebounceTimer);
 
+    if (!navigator.onLine) {
+        apiStatus = 'offline';
+        return;
+    }
+
     if (drugSearchQuery.trim().length < 2) {
       drugSearchResults = [];
       isSearchingDrugs = false;
@@ -187,20 +344,30 @@
     }
 
     isSearchingDrugs = true;
+    apiStatus = 'loading';
 
     drugSearchDebounceTimer = setTimeout(async () => {
       if (!drugIndexApi) {
         isSearchingDrugs = false;
+        apiStatus = 'offline';
         return;
       }
       
-      const { data } = await drugIndexApi
-        .from('brands')
-        .select('brand_key, name, manufacturer_key, ai_key')
-        .ilike('name', `%${drugSearchQuery}%`)
-        .limit(6);
+      try {
+        const { data, error } = await drugIndexApi
+          .from('brands')
+          .select('brand_key, name, manufacturer_key, ai_key')
+          .ilike('name', `%${drugSearchQuery}%`)
+          .limit(6);
+          
+        if (error) throw error;
 
-      if (data) drugSearchResults = data;
+        if (data) drugSearchResults = data;
+        apiStatus = 'online';
+      } catch (error) {
+        console.warn("DrugIndex API unreachable. Failing over to manual entry.", error);
+        apiStatus = 'offline';
+      }
       isSearchingDrugs = false;
     }, 300);
   }
@@ -234,9 +401,7 @@
     });
 
     if (dangerousAllergy) {
-      allergyWarning = `Contraindication found! Patient is allergic to "${dangerousAllergy}". Dispensing ${drug.name} has been blocked.`;
-      isCheckingSafety = false;
-      return; 
+      allergyWarning = `Contraindication found! Patient is allergic to "${dangerousAllergy}". Caution is advised.`;
     }
 
     const activePrescriptions = studentData?.prescriptions?.filter(p => p.status === 'active') || [];
@@ -270,8 +435,6 @@
              }
           }
           interactionWarning = warningMessage;
-          isCheckingSafety = false;
-          return; 
         }
       }
     }
@@ -302,16 +465,46 @@
   }
 
   function finalizeDrugSelection(baseDrug, formulation, variantKey = null) {
+    const canonicalNew = getCanonicalIngredient(baseDrug.name);
+
+    const isDuplicateIngredient = prescribedDrugs.some(existingDrug => {
+        const canonicalExisting = getCanonicalIngredient(existingDrug.name);
+        
+        // Check A: Canonical base word match
+        const hasSameBase = canonicalNew === canonicalExisting;
+
+        // Check B: Active Ingredient API Overlap
+        const hasIngredientOverlap = baseDrug.ai_key && existingDrug.ai_key && baseDrug.ai_key === existingDrug.ai_key;
+
+        return hasSameBase || hasIngredientOverlap;
+    });
+
+    if (isDuplicateIngredient) {
+        if (toastTimeout) clearTimeout(toastTimeout);
+        activeToast = `Addition Blocked: An equivalent formulation of ${canonicalNew.toUpperCase()} is already staged.`;
+        drugSearchQuery = '';
+        manualDrugName = '';
+        pendingVariantSelection = null;
+        availableVariants = [];
+        
+        toastTimeout = setTimeout(() => {
+            activeToast = '';
+        }, 3500);
+        return; 
+    }
+
     if (!prescribedDrugs.find(d => d.brand_key === baseDrug.brand_key && d.formulation === formulation)) {
-      prescribedDrugs.push({
+      // Reassign array using spread operator for strict reactivity guarantee
+      prescribedDrugs = [...prescribedDrugs, {
         ...baseDrug,
         formulation: formulation,
         variant_key: variantKey,
         dosage: '', 
         days: ''    
-      });
+      }];
     }
     drugSearchQuery = '';
+    manualDrugName = '';
     pendingVariantSelection = null;
     availableVariants = [];
   }
@@ -327,6 +520,10 @@
   }
 
   async function saveAndDispense() {
+    if (apiStatus === 'offline' && manualDrugName.trim() !== '') {
+       addManualDrug();
+    }
+
     if (prescribedDrugs.length === 0) {
       alert("Please select at least one drug to dispense.");
       return;
@@ -348,32 +545,60 @@
 
     const notesStr = symptoms.length > 0 ? `Symptoms: ${symptoms.join(', ')}` : 'No symptoms logged';
 
-    const prescriptionsToInsert = prescribedDrugs.map(drug => ({
-      student_id: studentData.id,
-      drug_name: `${drug.name} (${drug.formulation})`, 
-      ai_key: drug.ai_key,
-      dosage: `${drug.dosage} for ${drug.days} days`, 
-      doses_remaining: 1, 
-      next_dose_due: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), 
-      status: 'active',
-      notes: notesStr 
-    }));
+    const prescriptionsToInsert = prescribedDrugs.map(drug => {
+      const dosageString = `${drug.dosage} for ${drug.days} days`;
+      const match = dosageString ? dosageString.match(/(\d+)\*(\d+)\s+for\s+(\d+)\s+days/i) : null;
+      const freq = match ? parseInt(match[2]) : 1;
+      const daysParsed = match ? parseInt(match[3]) : 1;
+      const totalDoses = freq * daysParsed;
 
-    const { data, error } = await supabase
-      .from('prescriptions')
-      .insert(prescriptionsToInsert)
-      .select();
+      return {
+        id: crypto.randomUUID(),
+        student_id: studentData.id,
+        drug_name: `${drug.name} (${drug.formulation})`, 
+        ai_key: drug.ai_key || null,
+        dosage: dosageString, 
+        doses_remaining: Math.max(0, totalDoses - 1), 
+        next_dose_due: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(), 
+        status: 'active',
+        notes: notesStr,
+        created_at: new Date().toISOString()
+      };
+    });
+
+    if (navigator.onLine) {
+        try {
+            const { error } = await supabase.from('prescriptions').insert(prescriptionsToInsert);
+            if (error) throw error;
+            await db.prescriptions.bulkPut(prescriptionsToInsert);
+        } catch (error) {
+            console.error("Supabase Save Error:", error);
+            await saveOfflinePrescriptions(prescriptionsToInsert);
+        }
+    } else {
+        await saveOfflinePrescriptions(prescriptionsToInsert);
+    }
 
     isSaving = false;
+    prescribedDrugs = []; 
+    onClose(); 
+    if (onSaveSuccess) onSaveSuccess(prescriptionsToInsert); 
+  }
 
-    if (error) {
-      console.error("Error saving prescriptions:", error);
-      alert("Failed to save prescriptions to database. (Did you add the 'notes' column?)");
-    } else {
-      prescribedDrugs = []; 
-      onClose(); 
-      if (onSaveSuccess) onSaveSuccess(data); 
-    }
+  async function saveOfflinePrescriptions(prescriptions) {
+      try {
+          await db.prescriptions.bulkPut(prescriptions);
+          for (const rx of prescriptions) {
+              await db.syncQueue.add({
+                  operation: 'INSERT_PRESCRIPTION',
+                  payload: rx,
+                  timestamp: new Date().getTime()
+              });
+          }
+          console.log("Prescriptions saved offline. Queued for synchronization.");
+      } catch (error) {
+          console.error("Dexie Offline Save Error:", error);
+      }
   }
 </script>
 
@@ -444,52 +669,76 @@
           </span>
         </label>
 
-        {#if suggestedIngredients.length > 0}
-           <div class="mb-4 flex flex-wrap gap-2 animate-in slide-in-from-top-2">
-             <span class="text-xs font-bold text-rx-green/50 uppercase tracking-widest w-full mb-0.5">Matched from DrugIndex:</span>
-             {#each suggestedIngredients as ingredient}
-                <button 
-                  onclick={() => selectGenericDrug(ingredient)}
-                  class="btn-ghost !py-1.5 !px-3 !text-xs !justify-start"
-                >
-                  <svg class="w-3 h-3 shrink-0 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                  <span class="truncate max-w-[200px]">{ingredient.name}</span>
-                </button>
-             {/each}
-           </div>
-        {/if}
-        
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            {#if isSearchingDrugs || isCheckingSafety || isLoadingVariants}
-              <svg class="w-4 h-4 text-rx-yellow animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <div class="flex flex-col gap-2">
+            {#if apiStatus === 'offline'}
+                <!-- MANUAL OVERRIDE UI -->
+                <div class="border border-amber-300 bg-amber-50 rounded-xl p-4 transition-all mb-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Offline Mode: Manual Entry</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            bind:value={manualDrugName}
+                            onkeydown={(e) => { if (e.key === 'Enter') addManualDrug(); }}
+                            placeholder="Type drug name manually (e.g., Amoxicillin)..."
+                            class="w-full bg-white border border-amber-200 rounded-lg px-4 py-2 text-rx-green focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        />
+                        <button onclick={addManualDrug} class="bg-amber-500 hover:bg-amber-600 text-white px-4 rounded-lg font-bold text-sm transition-colors">Add</button>
+                    </div>
+                    <p class="text-[10px] text-amber-600/80 mt-2 font-medium">Interaction warnings are temporarily disabled.</p>
+                </div>
             {:else}
-              <svg class="w-4 h-4 text-rx-green/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            {/if}
-          </div>
-          
-          <input 
-            type="text" 
-            value={drugSearchQuery}
-            oninput={handleDrugInput}
-            placeholder="Search to add drug..." 
-            disabled={pendingVariantSelection !== null}
-            class="input-standard pl-10 pr-3 py-3 disabled:opacity-50 disabled:bg-rx-cream" 
-          />
+                <!-- EXISTING API DROPDOWN UI -->
+                {#if suggestedIngredients.length > 0}
+                   <div class="mb-4 flex flex-wrap gap-2 animate-in slide-in-from-top-2">
+                     <span class="text-xs font-bold text-rx-green/50 uppercase tracking-widest w-full mb-0.5">Matched from DrugIndex:</span>
+                     {#each suggestedIngredients as ingredient}
+                        <button 
+                          onclick={() => selectGenericDrug(ingredient)}
+                          class="btn-ghost !py-1.5 !px-3 !text-xs !justify-start"
+                        >
+                          <svg class="w-3 h-3 shrink-0 text-rx-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                          <span class="truncate max-w-[200px]">{ingredient.name}</span>
+                        </button>
+                     {/each}
+                   </div>
+                {/if}
 
-          {#if drugSearchResults.length > 0 && !pendingVariantSelection}
-            <div class="absolute top-full left-0 w-full bg-white border border-rx-peach shadow-xl rounded-lg mt-2 z-50 overflow-hidden max-h-48 overflow-y-auto">
-              {#each drugSearchResults as drug}
-                <button 
-                  onclick={() => selectDrugBase(drug)} 
-                  class="w-full text-left px-4 py-3 hover:bg-rx-cream border-b border-rx-cream last:border-0 transition-colors flex items-center justify-between group"
-                >
-                  <span class="text-sm font-bold text-rx-green">{drug.name}</span>
-                  <svg class="w-4 h-4 text-rx-green/30 group-hover:text-rx-green transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                </button>
-              {/each}
-            </div>
-          {/if}
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    {#if apiStatus === 'loading' || isSearchingDrugs || isCheckingSafety || isLoadingVariants}
+                      <svg class="w-4 h-4 text-rx-yellow animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    {:else}
+                      <svg class="w-4 h-4 text-rx-green/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    {/if}
+                  </div>
+                  
+                  <input 
+                    type="text" 
+                    value={drugSearchQuery}
+                    oninput={handleDrugInput}
+                    placeholder="Search to add drug..." 
+                    disabled={pendingVariantSelection !== null}
+                    class="input-standard pl-10 pr-3 py-3 disabled:opacity-50 disabled:bg-rx-cream" 
+                  />
+
+                  {#if drugSearchResults.length > 0 && !pendingVariantSelection}
+                    <div class="absolute top-full left-0 w-full bg-white border border-rx-peach shadow-xl rounded-lg mt-2 z-50 overflow-hidden max-h-48 overflow-y-auto">
+                      {#each drugSearchResults as drug}
+                        <button 
+                          onclick={() => selectDrugBase(drug)} 
+                          class="w-full text-left px-4 py-3 hover:bg-rx-cream border-b border-rx-cream last:border-0 transition-colors flex items-center justify-between group"
+                        >
+                          <span class="text-sm font-bold text-rx-green">{drug.name}</span>
+                          <svg class="w-4 h-4 text-rx-green/30 group-hover:text-rx-green transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+            {/if}
         </div>
 
         {#if pendingVariantSelection && availableVariants.length > 0}
@@ -551,6 +800,36 @@
           </div>
         {/if}
 
+        {#if polypharmacyWarning}
+          <div class="mt-3 bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2">
+            <div class="mt-0.5 bg-purple-100 p-1.5 rounded-full">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+            </div>
+            <div>
+               <h4 class="text-sm font-bold text-purple-900">Polypharmacy Alert</h4>
+               <p class="text-sm text-purple-700 font-medium mt-1 leading-snug">{polypharmacyWarning}</p>
+            </div>
+            <button onclick={() => polypharmacyWarning = null} class="ml-auto p-1.5 text-purple-400 hover:text-purple-700 hover:bg-purple-100 rounded-md transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+        {/if}
+
+        {#if intraSessionWarning}
+          <div class="mt-3 bg-fuchsia-50 border border-fuchsia-200 rounded-xl p-4 flex items-start gap-3 animate-in slide-in-from-top-2">
+            <div class="mt-0.5 bg-fuchsia-100 p-1.5 rounded-full">
+              <svg class="w-4 h-4 text-fuchsia-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+               <h4 class="text-sm font-bold text-fuchsia-900">Current Session Conflict</h4>
+               <p class="text-sm text-fuchsia-700 font-medium mt-1 leading-snug">{intraSessionWarning}</p>
+            </div>
+            <button onclick={() => intraSessionWarning = null} class="ml-auto p-1.5 text-fuchsia-400 hover:text-fuchsia-700 hover:bg-fuchsia-100 rounded-md transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+        {/if}
+
         {#if prescribedDrugs.length > 0}
           <div class="mt-4 flex flex-col gap-3">
             {#each prescribedDrugs as drug, i}
@@ -591,3 +870,40 @@
     </div>
   </div>
 </div>
+
+{#if activeToast}
+    <!-- Fixed positioning keeps it floating in the top right corner -->
+    <div 
+        class="fixed top-6 right-6 w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] z-[9999] border border-rx-green/10 overflow-hidden"
+        transition:fly={{ x: 50, duration: 400 }}
+    >
+        <div class="p-4 flex items-center gap-3">
+            <!-- Brand-colored typography (Icon removed) -->
+            <div class="flex-1 text-sm font-semibold leading-relaxed text-rx-green">
+                {activeToast}
+            </div>
+            <!-- Soft close button -->
+            <button class="text-rx-green/40 hover:text-rx-green transition-colors" onclick={() => activeToast = ''}>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- The Shrinking Progress Bar Track -->
+        <div class="h-1 w-full bg-slate-100">
+            <!-- The Animated Bar (Color matches the brand) -->
+            <div class="h-full bg-orange-400 toast-progress"></div>
+        </div>
+    </div>
+{/if}
+
+<style>
+    .toast-progress {
+        /* 3.5s must perfectly match the setTimeout duration in the script */
+        animation: shrinkBar 3.5s linear forwards; 
+    }
+
+    @keyframes shrinkBar {
+        from { width: 100%; }
+        to { width: 0%; }
+    }
+</style>

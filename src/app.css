@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
 /* SF Pro Text - For Body */
 @font-face {
   font-family: 'SF Pro Text';
